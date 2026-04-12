@@ -15,7 +15,8 @@
       "Bash(npx shadcn@latest add button input label select tabs dialog separator tooltip scroll-area switch badge card)",
       "Bash(npx shadcn@latest add textarea dropdown-menu alert)",
       "Bash(npm run:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(x => x.toLowerCase\\(\\).includes\\('lamport'\\)\\)\\)\")"
     ]
   }
 }
