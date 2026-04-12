@@ -16,7 +16,8 @@
       "Bash(npx shadcn@latest add textarea dropdown-menu alert)",
       "Bash(npm run:*)",
       "Bash(git push:*)",
-      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(x => x.toLowerCase\\(\\).includes\\('lamport'\\)\\)\\)\")"
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(x => x.toLowerCase\\(\\).includes\\('lamport'\\)\\)\\)\")",
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(typeof k.pipe\\)\")"
     ]
   }
 }
