@@ -343,7 +343,7 @@ function CreateAccountPanel() {
           )}
           <Button onClick={create} disabled={creating || !isConnected || !newAcctSigner}>
             {creating && <Loader2 className="size-4 animate-spin mr-2" />}
-            {!isConnected ? 'Connect wallet to create' : 'Create Account'}
+            Create Account
           </Button>
         </div>
 
@@ -438,7 +438,7 @@ function FundAccountPanel() {
         )}
         <Button onClick={send} disabled={sending || !isConnected || !recipient.trim()}>
           {sending && <Loader2 className="size-4 animate-spin mr-2" />}
-          {!isConnected ? 'Connect wallet to send' : 'Send SOL'}
+          Send SOL
         </Button>
         {sig && (
           <a
