@@ -221,7 +221,7 @@ function CreateAccountPanel() {
   useEffect(() => { fetchRent() }, [fetchRent])
 
   const create = useCallback(async () => {
-    if (!signer || !isConnected) { toast.error('Connect a wallet first'); return }
+    if (!signer) { toast.error('Connect a wallet first'); return }
     if (!newAcctSigner) { toast.error('Generate a keypair first'); return }
 
     setCreating(true)
@@ -335,13 +335,13 @@ function CreateAccountPanel() {
 
         {/* Step 3 — on-chain creation, wallet required */}
         <div className="space-y-2">
-          {!isConnected && (
+          {!signer && (
             <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
               A connected wallet is required to pay the rent-exempt deposit
               {rentExempt !== null ? ` (${lamportsToSol(rentExempt)} SOL)` : ''}.
             </div>
           )}
-          <Button onClick={create} disabled={creating || !isConnected || !newAcctSigner}>
+          <Button onClick={create} disabled={creating || !signer || !newAcctSigner}>
             {creating && <Loader2 className="size-4 animate-spin mr-2" />}
             Create Account
           </Button>
@@ -369,7 +369,7 @@ function CreateAccountPanel() {
 
 function FundAccountPanel() {
   const { rpcUrl, network, customRpcUrl } = useNetworkStore()
-  const { signer, isConnected } = useWalletContext()
+  const { signer } = useWalletContext()
   const activeRpcUrl = network === 'custom' ? customRpcUrl : rpcUrl
 
   const [recipient, setRecipient] = useState('')
@@ -378,8 +378,8 @@ function FundAccountPanel() {
   const [sig, setSig] = useState<string | null>(null)
 
   const send = useCallback(async () => {
-    if (!signer) { toast.error('Connect a wallet first'); return }
     if (!recipient.trim()) { toast.error('Enter a recipient address'); return }
+    if (!signer) { toast.error('Connect a wallet first'); return }
 
     setSending(true)
     setSig(null)
@@ -431,12 +431,12 @@ function FundAccountPanel() {
             onChange={(e) => setAmount(e.target.value)}
           />
         </div>
-        {!isConnected && (
+        {!signer && (
           <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
             A connected wallet is required as the sender.
           </div>
         )}
-        <Button onClick={send} disabled={sending || !isConnected || !recipient.trim()}>
+        <Button onClick={send} disabled={sending || !signer || !recipient.trim()}>
           {sending && <Loader2 className="size-4 animate-spin mr-2" />}
           Send SOL
         </Button>
