@@ -176,7 +176,7 @@ function DecodePanel({ account }: { account: AccountInfo; addr: string }) {
 
 function CreateAccountPanel() {
   const { rpcUrl, network, customRpcUrl } = useNetworkStore()
-  const { signer, isConnected, walletAddress } = useWalletContext()
+  const { signer, isConnected } = useWalletContext()
   const activeRpcUrl = network === 'custom' ? customRpcUrl : rpcUrl
 
   const [ownerProgram, setOwnerProgram] = useState('11111111111111111111111111111111')
@@ -185,8 +185,25 @@ function CreateAccountPanel() {
   const [rentExempt, setRentExempt] = useState<bigint | null>(null)
   const [loadingRent, setLoadingRent] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [newAddress, setNewAddress] = useState<string | null>(null)
+  const [createdAddress, setCreatedAddress] = useState<string | null>(null)
   const [sig, setSig] = useState<string | null>(null)
+
+  // New account keypair — generated client-side, no wallet required
+  const [newAcctSigner, setNewAcctSigner] = useState<Awaited<ReturnType<typeof generateKeyPairSigner>> | null>(null)
+  const [generatingKeypair, setGeneratingKeypair] = useState(false)
+
+  const generateKeypair = useCallback(async () => {
+    setGeneratingKeypair(true)
+    try {
+      const kp = await generateKeyPairSigner()
+      setNewAcctSigner(kp)
+    } finally {
+      setGeneratingKeypair(false)
+    }
+  }, [])
+
+  // Auto-generate a new account address on mount
+  useEffect(() => { generateKeypair() }, [generateKeypair])
 
   const fetchRent = useCallback(async () => {
     setLoadingRent(true)
@@ -205,13 +222,12 @@ function CreateAccountPanel() {
 
   const create = useCallback(async () => {
     if (!signer || !isConnected) { toast.error('Connect a wallet first'); return }
-    if (!walletAddress) return
+    if (!newAcctSigner) { toast.error('Generate a keypair first'); return }
 
     setCreating(true)
-    setNewAddress(null)
+    setCreatedAddress(null)
     setSig(null)
     try {
-      const newAcctSigner = await generateKeyPairSigner()
       const lamportAmount = customLamports
         ? lamports(BigInt(customLamports))
         : lamports(rentExempt ?? 0n)
@@ -225,7 +241,7 @@ function CreateAccountPanel() {
       })
 
       const signature = await buildAndSendTransaction(activeRpcUrl, signer, [ix])
-      setNewAddress(newAcctSigner.address)
+      setCreatedAddress(newAcctSigner.address)
       setSig(signature)
       toast.success('Account created!')
     } catch (e) {
@@ -233,7 +249,7 @@ function CreateAccountPanel() {
     } finally {
       setCreating(false)
     }
-  }, [activeRpcUrl, customLamports, isConnected, ownerProgram, rentExempt, signer, spaceBytes, walletAddress])
+  }, [activeRpcUrl, customLamports, isConnected, newAcctSigner, ownerProgram, rentExempt, signer, spaceBytes])
 
   return (
     <Card>
@@ -244,6 +260,40 @@ function CreateAccountPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+
+        {/* Step 1 — client-side, no wallet needed */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label>New Account Address</Label>
+            <Badge variant="secondary" className="text-xs font-normal">No wallet required</Badge>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              readOnly
+              value={newAcctSigner?.address ?? ''}
+              placeholder="Generating…"
+              className="font-mono text-xs"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              onClick={generateKeypair}
+              disabled={generatingKeypair}
+              title="Generate a new keypair"
+            >
+              {generatingKeypair
+                ? <Loader2 className="size-4 animate-spin" />
+                : <RefreshCw className="size-4" />}
+            </Button>
+            {newAcctSigner && <CopyButton text={newAcctSigner.address} />}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            A new Ed25519 keypair is generated locally in your browser. Click <RefreshCw className="size-3 inline" /> to regenerate.
+          </p>
+        </div>
+
+        {/* Step 2 — account parameters */}
         <div className="space-y-1.5">
           <Label>Owner Program</Label>
           <Input
@@ -282,14 +332,25 @@ function CreateAccountPanel() {
             onChange={(e) => setCustomLamports(e.target.value)}
           />
         </div>
-        <Button onClick={create} disabled={creating || !isConnected}>
-          {creating && <Loader2 className="size-4 animate-spin mr-2" />}
-          {!isConnected ? 'Connect wallet to create' : 'Create Account'}
-        </Button>
-        {newAddress && sig && (
+
+        {/* Step 3 — on-chain creation, wallet required */}
+        <div className="space-y-2">
+          {!isConnected && (
+            <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
+              A connected wallet is required to pay the rent-exempt deposit
+              {rentExempt !== null ? ` (${lamportsToSol(rentExempt)} SOL)` : ''}.
+            </div>
+          )}
+          <Button onClick={create} disabled={creating || !isConnected || !newAcctSigner}>
+            {creating && <Loader2 className="size-4 animate-spin mr-2" />}
+            {!isConnected ? 'Connect wallet to create' : 'Create Account'}
+          </Button>
+        </div>
+
+        {createdAddress && sig && (
           <div className="rounded-md bg-muted p-3 space-y-1 text-xs">
             <p className="text-green-500 font-medium">Account created!</p>
-            <p className="text-muted-foreground">Address: <span className="font-mono">{newAddress}</span></p>
+            <p className="text-muted-foreground">Address: <span className="font-mono">{createdAddress}</span></p>
             <a
               href={`https://explorer.solana.com/tx/${sig}${network === 'devnet' ? '?cluster=devnet' : ''}`}
               target="_blank" rel="noopener noreferrer"
@@ -342,8 +403,13 @@ function FundAccountPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Transfer SOL</CardTitle>
-        <CardDescription>Send SOL from your connected wallet to any address.</CardDescription>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-base">Transfer SOL</CardTitle>
+            <CardDescription className="mt-1">Send SOL from your connected wallet to any address.</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-xs font-normal shrink-0">Wallet required</Badge>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-1.5">
@@ -365,6 +431,11 @@ function FundAccountPanel() {
             onChange={(e) => setAmount(e.target.value)}
           />
         </div>
+        {!isConnected && (
+          <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
+            A connected wallet is required as the sender.
+          </div>
+        )}
         <Button onClick={send} disabled={sending || !isConnected || !recipient.trim()}>
           {sending && <Loader2 className="size-4 animate-spin mr-2" />}
           {!isConnected ? 'Connect wallet to send' : 'Send SOL'}

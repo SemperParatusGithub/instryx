@@ -106,9 +106,12 @@ function PdaDeriver({
 
   return (
     <div className="space-y-2 bg-muted/50 rounded-md p-3">
-      <p className="text-xs font-medium flex items-center gap-1.5">
-        <Hash className="size-3.5" /> PDA Derivation
-      </p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium flex items-center gap-1.5">
+          <Hash className="size-3.5" /> PDA Derivation
+        </p>
+        <Badge variant="secondary" className="text-xs font-normal">No wallet required</Badge>
+      </div>
       {seeds.map((seed, i) => (
         <div key={i} className="flex items-center gap-1.5">
           <Select
