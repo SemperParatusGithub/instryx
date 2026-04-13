@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { useIdlStore } from '@/stores/idlStore'
+import { WalletButton } from '@/features/wallet/WalletButton'
 
 const NAV_ITEMS = [
   { to: '/network', icon: Layers, label: 'Network' },
@@ -84,6 +85,11 @@ export function Sidebar() {
           </>
         )}
       </ScrollArea>
+
+      {/* Wallet connect at the bottom */}
+      <div className="p-3 border-t border-border">
+        <WalletButton />
+      </div>
     </aside>
   )
 }

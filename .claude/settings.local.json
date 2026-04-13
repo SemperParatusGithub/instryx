@@ -17,7 +17,10 @@
       "Bash(npm run:*)",
       "Bash(git push:*)",
       "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(x => x.toLowerCase\\(\\).includes\\('lamport'\\)\\)\\)\")",
-      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(typeof k.pipe\\)\")"
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(typeof k.pipe\\)\")",
+      "Bash(node -e \"const w = require\\('@solana/wallet-standard-wallet-adapter-react'\\); console.log\\(Object.keys\\(w\\)\\)\")",
+      "Bash(node -e \"const w = require\\('@solana/wallet-standard-wallet-adapter-base'\\); console.log\\(Object.keys\\(w\\)\\)\")",
+      "Bash(node -e \"const r = require\\('@solana/react'\\); console.log\\(Object.keys\\(r\\).sort\\(\\)\\)\")"
     ]
   }
 }

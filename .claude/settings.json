@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const s = require\\('@solana-program/system'\\); console.log\\(Object.keys\\(s\\).filter\\(k => k.startsWith\\('get'\\)\\).sort\\(\\)\\)\")",
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(k => k.includes\\('Signer'\\) || k.includes\\('signAndSend'\\) || k.includes\\('setTransactionMessageFeePayerSigner'\\)\\).sort\\(\\)\\)\")",
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(k => k.includes\\('appendTransaction'\\) || k.includes\\('getBase58'\\) || k.includes\\('Decoder'\\)\\).sort\\(\\)\\)\")",
+      "Bash(node -e \"const r = require\\('@solana/react'\\); const sig = require\\('util'\\).inspect; console.log\\(typeof r.SelectedWalletAccountContextProvider\\)\")",
+      "Bash(node -e \"const k = require\\('@solana/kit'\\); console.log\\(Object.keys\\(k\\).filter\\(x => x === 'Instruction' || x === 'IInstruction'\\)\\)\")",
+      "Bash(grep -rn \"type.*Instruction\\\\b\\\\|interface.*Instruction\\\\b\" /Users/schlager/Desktop/instryx/node_modules/@solana/instructions/dist/types/*.d.ts)",
+      "Bash(git commit -m ':*)"
+    ]
+  }
+}
