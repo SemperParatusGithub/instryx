@@ -1,6 +1,7 @@
 import { SelectedWalletAccountContextProvider } from '@solana/react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from 'sonner'
+import { WalletSignerProvider } from '@/features/wallet/WalletSignerContext'
 
 const WALLET_STORAGE_KEY = 'instryx-wallet'
 
@@ -11,13 +12,14 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <SelectedWalletAccountContextProvider
-      filterWallets={(wallet) => wallet.accounts.length > 0}
+      filterWallets={() => true}
       stateSync={{
         getSelectedWallet: () => localStorage.getItem(WALLET_STORAGE_KEY),
         storeSelectedWallet: (key) => localStorage.setItem(WALLET_STORAGE_KEY, key),
         deleteSelectedWallet: () => localStorage.removeItem(WALLET_STORAGE_KEY),
       }}
     >
+      <WalletSignerProvider>
       <TooltipProvider delayDuration={300}>
         {children}
         <Toaster
@@ -27,6 +29,7 @@ export function Providers({ children }: ProvidersProps) {
           closeButton
         />
       </TooltipProvider>
+      </WalletSignerProvider>
     </SelectedWalletAccountContextProvider>
   )
 }

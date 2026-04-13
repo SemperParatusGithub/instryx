@@ -1,6 +1,6 @@
-import { useSelectedWalletAccount, useWalletAccountTransactionSendingSigner } from '@solana/react'
-import type { UiWalletAccount } from '@wallet-standard/ui'
+import { useSelectedWalletAccount } from '@solana/react'
 import { useNetworkStore } from '@/stores/networkStore'
+import { useWalletSigner } from './WalletSignerContext'
 import type { Network } from '@/types'
 
 export function networkToChainId(network: Network): `solana:${string}` {
@@ -15,20 +15,14 @@ export function networkToChainId(network: Network): `solana:${string}` {
 export function useWalletContext() {
   const { network } = useNetworkStore()
   const [account, setAccount, wallets] = useSelectedWalletAccount()
+  const signer = useWalletSigner()
   const chainId = networkToChainId(network)
-
-  // We always call this hook unconditionally (React rule), but only use the result when account exists.
-  // Cast account to satisfy the required non-nullable type; we guard usage with isConnected.
-  const signer = useWalletAccountTransactionSendingSigner(
-    account as UiWalletAccount,
-    chainId,
-  )
 
   return {
     account: account ?? null,
     setAccount,
     wallets,
-    signer: account ? signer : null,
+    signer,                          // null when not connected, valid signer when connected
     isConnected: Boolean(account),
     walletAddress: account?.address ?? null,
     chainId,
