@@ -6,7 +6,8 @@
  * The solution: render a different inner component that *always* has a non-null
  * account, so the hook is always called with a valid value.
  */
-import { createContext, useContext } from 'react'
+import { createContext, useContext, Component } from 'react'
+import type { ReactNode } from 'react'
 import {
   useSelectedWalletAccount,
   useWalletAccountTransactionSendingSigner,
@@ -17,6 +18,22 @@ import { useNetworkStore } from '@/stores/networkStore'
 import { networkToChainId } from './useWalletContext'
 
 const WalletSignerContext = createContext<TransactionSendingSigner | null>(null)
+
+// Error boundary so a throw inside SignerProviderInner (e.g. unsupported
+// feature, unexpected chain) produces a null signer instead of crashing the app.
+class SignerErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
+    super(props)
+    this.state = { failed: false }
+  }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children
+  }
+}
 
 /**
  * Resolve the best chain ID to use for signing.
@@ -52,12 +69,18 @@ function SignerProviderInner({
   )
 }
 
+const NullSignerProvider = ({ children }: { children: ReactNode }) => (
+  <WalletSignerContext.Provider value={null}>{children}</WalletSignerContext.Provider>
+)
+
 /** Wrap the app with this provider (inside SelectedWalletAccountContextProvider). */
-export function WalletSignerProvider({ children }: { children: React.ReactNode }) {
+export function WalletSignerProvider({ children }: { children: ReactNode }) {
   const [account] = useSelectedWalletAccount()
   if (account) {
     return (
-      <SignerProviderInner account={account}>{children}</SignerProviderInner>
+      <SignerErrorBoundary fallback={<NullSignerProvider>{children}</NullSignerProvider>}>
+        <SignerProviderInner account={account}>{children}</SignerProviderInner>
+      </SignerErrorBoundary>
     )
   }
   return (
