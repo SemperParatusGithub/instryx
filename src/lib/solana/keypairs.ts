@@ -1,38 +1,32 @@
-import { generateKeyPair, getAddressFromPublicKey } from '@solana/kit'
+import nacl from 'tweetnacl'
+import bs58 from 'bs58'
 
-/** Generate a new Ed25519 keypair and return the address + exportable secret bytes */
+/**
+ * Generate a new Ed25519 keypair using tweetnacl.
+ * Returns the base58 public key address and the 64-byte secret key in
+ * Solana CLI format: secretKey = seed(32) || publicKey(32).
+ */
 export async function generateNewKeypair(): Promise<{
   publicKey: string
   secretKeyBytes: Uint8Array
 }> {
-  const kp = await generateKeyPair()
-  const publicKey = await getAddressFromPublicKey(kp.publicKey)
-  // Export private key scalar as raw bytes (32 bytes)
-  const privRaw = await crypto.subtle.exportKey('raw', kp.privateKey)
-  // Export public key as raw bytes (32 bytes)
-  const pubRaw = await crypto.subtle.exportKey('raw', kp.publicKey)
-  // Solana CLI format: 64 bytes = private(32) + public(32)
-  const secretKeyBytes = new Uint8Array(64)
-  secretKeyBytes.set(new Uint8Array(privRaw), 0)
-  secretKeyBytes.set(new Uint8Array(pubRaw), 32)
-  return { publicKey, secretKeyBytes }
+  const kp = nacl.sign.keyPair()
+  // nacl.sign.keyPair().secretKey is already 64 bytes: seed || pubkey (Solana CLI format)
+  return {
+    publicKey: bs58.encode(kp.publicKey),
+    secretKeyBytes: kp.secretKey,
+  }
 }
 
-/** Derive the public key address from a 64-byte secret key (Solana CLI format) */
+/**
+ * Derive the public key address from a 64-byte Solana CLI secret key.
+ * The last 32 bytes are the public key.
+ */
 export async function publicKeyFromSecretBytes(secretKeyBytes: Uint8Array): Promise<string> {
-  // The last 32 bytes are the public key in Solana CLI format
-  const pubKeyBytes = secretKeyBytes.slice(32, 64)
-  const pubKey = await crypto.subtle.importKey(
-    'raw',
-    pubKeyBytes,
-    { name: 'Ed25519', namedCurve: 'Ed25519' },
-    true,
-    ['verify'],
-  )
-  return getAddressFromPublicKey(pubKey)
+  return bs58.encode(secretKeyBytes.slice(32, 64))
 }
 
-/** Encrypt secret key bytes with a password using AES-GCM */
+/** Encrypt secret key bytes with a password using AES-GCM + PBKDF2 */
 export async function encryptSecretKey(
   secretKeyBytes: Uint8Array,
   password: string,
