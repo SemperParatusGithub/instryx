@@ -14,12 +14,29 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 
+const STANDARD_CONNECT = 'standard:connect'
+
 function truncate(addr: string) {
   return `${addr.slice(0, 4)}…${addr.slice(-4)}`
 }
 
-/** Per-wallet option — useConnect must be called once per wallet (not in a loop). */
-function WalletOption({
+function WalletIcon({ wallet }: { wallet: UiWallet }) {
+  return (
+    <img
+      src={wallet.icon}
+      alt={wallet.name}
+      className="size-4 rounded-sm shrink-0"
+      onError={(e) => { e.currentTarget.style.display = 'none' }}
+    />
+  )
+}
+
+/**
+ * For wallets that implement standard:connect (Backpack, Solflare, etc.).
+ * useConnect is only called here — inside a component that's conditionally
+ * rendered — so it's never called for wallets that don't support the feature.
+ */
+function ConnectableWalletOption({
   wallet,
   onSelect,
 }: {
@@ -33,12 +50,7 @@ function WalletOption({
       <>
         {wallet.accounts.map((acc) => (
           <DropdownMenuItem key={acc.address} onClick={() => onSelect(acc)}>
-            <img
-              src={wallet.icon}
-              alt={wallet.name}
-              className="size-4 rounded-sm shrink-0"
-              onError={(e) => { e.currentTarget.style.display = 'none' }}
-            />
+            <WalletIcon wallet={wallet} />
             <span className="truncate">{wallet.name}</span>
             <span className="ml-auto font-mono text-xs text-muted-foreground">
               {truncate(acc.address)}
@@ -61,21 +73,66 @@ function WalletOption({
         }
       }}
     >
-      {isConnecting ? (
-        <Loader2 className="size-4 animate-spin shrink-0" />
-      ) : (
-        <img
-          src={wallet.icon}
-          alt={wallet.name}
-          className="size-4 rounded-sm shrink-0"
-          onError={(e) => { e.currentTarget.style.display = 'none' }}
-        />
-      )}
+      {isConnecting
+        ? <Loader2 className="size-4 animate-spin shrink-0" />
+        : <WalletIcon wallet={wallet} />}
       <span className="truncate">
         {isConnecting ? `Connecting to ${wallet.name}…` : `Connect ${wallet.name}`}
       </span>
     </DropdownMenuItem>
   )
+}
+
+/**
+ * For wallets like Phantom that do NOT implement standard:connect.
+ * They auto-expose accounts when the extension is unlocked — just show them.
+ */
+function DirectWalletOption({
+  wallet,
+  onSelect,
+}: {
+  wallet: UiWallet
+  onSelect: (acc: UiWalletAccount) => void
+}) {
+  if (wallet.accounts.length === 0) {
+    return (
+      <DropdownMenuItem disabled>
+        <WalletIcon wallet={wallet} />
+        <span className="truncate text-muted-foreground">
+          {wallet.name} — unlock wallet first
+        </span>
+      </DropdownMenuItem>
+    )
+  }
+
+  return (
+    <>
+      {wallet.accounts.map((acc) => (
+        <DropdownMenuItem key={acc.address} onClick={() => onSelect(acc)}>
+          <WalletIcon wallet={wallet} />
+          <span className="truncate">{wallet.name}</span>
+          <span className="ml-auto font-mono text-xs text-muted-foreground">
+            {truncate(acc.address)}
+          </span>
+        </DropdownMenuItem>
+      ))}
+    </>
+  )
+}
+
+function WalletOption({
+  wallet,
+  onSelect,
+}: {
+  wallet: UiWallet
+  onSelect: (acc: UiWalletAccount) => void
+}) {
+  const supportsStandardConnect = wallet.features.includes(STANDARD_CONNECT)
+
+  if (supportsStandardConnect) {
+    return <ConnectableWalletOption wallet={wallet} onSelect={onSelect} />
+  }
+  return <DirectWalletOption wallet={wallet} onSelect={onSelect} />
 }
 
 export function WalletButton() {
@@ -91,7 +148,7 @@ export function WalletButton() {
     })
   }
 
-  // Connected state
+  // Connected
   if (account) {
     return (
       <DropdownMenu>
@@ -128,7 +185,7 @@ export function WalletButton() {
     )
   }
 
-  // Not connected — no wallets detected
+  // No wallets detected at all
   if (wallets.length === 0) {
     return (
       <Button variant="outline" size="sm" className="w-full text-xs" disabled>
@@ -138,7 +195,7 @@ export function WalletButton() {
     )
   }
 
-  // Not connected — show wallet list
+  // Show wallet picker
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
