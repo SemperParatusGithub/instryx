@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { toast } from 'sonner'
 import {
@@ -9,7 +10,6 @@ import {
   ChevronUp,
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   Hash,
   Copy,
   Plus,
@@ -47,19 +47,6 @@ type SimResult = {
 
 type TxResult = {
   signature: string
-  explorerUrl: string
-}
-
-function explorerUrl(sig: string, network: string) {
-  const cluster =
-    network === 'mainnet'
-      ? ''
-      : network === 'devnet'
-        ? '?cluster=devnet'
-        : network === 'localnet'
-          ? '?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899'
-          : '?cluster=devnet'
-  return `https://explorer.solana.com/tx/${sig}${cluster}`
 }
 
 // ------------------------------------------------------------------
@@ -269,8 +256,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
       try {
         const ix = await buildInstruction(formData)
         const sig = await buildAndSendTransaction(activeRpcUrl, signer, [ix])
-        const url = explorerUrl(sig, network)
-        setTxResult({ signature: sig, explorerUrl: url })
+        setTxResult({ signature: sig })
         toast.success('Transaction sent!')
       } catch (e) {
         toast.error('Send failed: ' + (e instanceof Error ? e.message : String(e)))
@@ -278,7 +264,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
         setSending(false)
       }
     },
-    [activeRpcUrl, buildInstruction, network, signer],
+    [activeRpcUrl, buildInstruction, signer],
   )
 
   return (
@@ -477,14 +463,12 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground break-all">
                   {txResult.signature}
-                  <a
-                    href={txResult.explorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    to={`/transactions?sig=${txResult.signature}`}
                     className="inline-flex items-center gap-1 text-primary hover:underline shrink-0"
                   >
-                    <ExternalLink className="size-3" /> Explorer
-                  </a>
+                    View transaction
+                  </Link>
                 </div>
               </div>
             </>

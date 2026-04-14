@@ -1,0 +1,14 @@
+/Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/deps/serde-032053c3d1c4c499.d: /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/build/serde-6cd3aab56cf133bc/out/private.rs
+
+/Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/deps/libserde-032053c3d1c4c499.rlib: /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/build/serde-6cd3aab56cf133bc/out/private.rs
+
+/Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/deps/libserde-032053c3d1c4c499.rmeta: /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/build/serde-6cd3aab56cf133bc/out/private.rs
+
+/Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/schlager/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/build/serde-6cd3aab56cf133bc/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/schlager/Desktop/instryx/program/target/sbpf-solana-solana/release/build/serde-6cd3aab56cf133bc/out

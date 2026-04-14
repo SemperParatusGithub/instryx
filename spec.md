@@ -93,10 +93,15 @@ The app is a **pure client-side single-page application (SPA)**. It has no backe
 - Clear / remove loaded IDL
 
 ### 6.3 Account Management
-- **Create Account**: Specify address (generate keypair or provide pubkey), space (bytes), owner program, and lamports (auto-calculated for rent exemption or custom)
+
+> **Wallet connection requirements:**
+> - **No wallet required:** Keypair generation and PDA derivation are purely client-side operations. They produce addresses without touching the network and do not require a connected wallet.
+> - **Wallet required:** On-chain account creation requires a connected wallet as the fee payer, because rent-exemption lamports must be transferred from the wallet to the new account. SOL transfers similarly require a connected wallet as the sender.
+
+- **Create Account**: Specify address (generate keypair or provide pubkey), space (bytes), owner program, and lamports (auto-calculated for rent exemption or custom). Requires a connected wallet to pay rent.
 - **View Account**: Inspect any account by public key — display lamports, owner, executable flag, and raw data
 - **Decode Account Data**: If an IDL is loaded and the account matches a known account type, decode and display the data in a human-readable format
-- **Fund Account**: Transfer SOL to any address
+- **Fund Account**: Transfer SOL to any address. Requires a connected wallet as the sender.
 - **Close Account**: Reclaim lamports from an account (where applicable)
 - Save frequently used accounts to a local address book (persisted in `localStorage`)
 

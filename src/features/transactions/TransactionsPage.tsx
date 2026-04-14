@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { createSolanaRpc, address } from '@solana/kit'
 import { toast } from 'sonner'
-import { Search, Loader2, Copy, CheckCircle2, ExternalLink } from 'lucide-react'
+import { Search, Loader2, Copy, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -69,26 +70,12 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
-function explorerUrl(sig: string, network: string) {
-  const cluster =
-    network === 'mainnet'
-      ? ''
-      : network === 'devnet'
-        ? '?cluster=devnet'
-        : network === 'localnet'
-          ? '?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899'
-          : '?cluster=devnet'
-  return `https://explorer.solana.com/tx/${sig}${cluster}`
-}
-
 function TxRow({
   tx,
   onSelect,
-  network,
 }: {
   tx: RecentTx
   onSelect: (sig: string) => void
-  network: string
 }) {
   const time = tx.blockTime
     ? new Date(Number(tx.blockTime) * 1000).toLocaleTimeString()
@@ -113,20 +100,12 @@ function TxRow({
         <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => onSelect(tx.signature)}>
           Details
         </Button>
-        <a
-          href={explorerUrl(tx.signature, network)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <ExternalLink className="size-3" />
-        </a>
       </div>
     </div>
   )
 }
 
-function TxDetail({ detail, sig, network }: { detail: TransactionDetail; sig: string; network: string }) {
+function TxDetail({ detail, sig }: { detail: TransactionDetail; sig: string }) {
   const { meta } = detail
   const lamportsToSol = (l: bigint) => (Number(l) / 1_000_000_000).toFixed(6)
   const blockTime = detail.blockTime
@@ -168,14 +147,6 @@ function TxDetail({ detail, sig, network }: { detail: TransactionDetail; sig: st
       <div className="flex items-center gap-1">
         <span className="text-xs font-mono text-muted-foreground truncate">{sig}</span>
         <CopyButton text={sig} />
-        <a
-          href={explorerUrl(sig, network)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ExternalLink className="size-3" /> Explorer
-        </a>
       </div>
 
       {/* Balance changes */}
@@ -224,9 +195,11 @@ export function TransactionsPage() {
   const { rpcUrl, network, customRpcUrl } = useNetworkStore()
   useIdlStore() // available for future IDL-based instruction decoding
   const activeRpcUrl = network === 'custom' ? customRpcUrl : rpcUrl
+  const [searchParams] = useSearchParams()
 
   const [accountAddress, setAccountAddress] = useState('')
-  const [sigLookup, setSigLookup] = useState('')
+  const [sigLookup, setSigLookup] = useState(() => searchParams.get('sig') ?? '')
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('sig') ? 'sig' : 'account')
   const [loading, setLoading] = useState(false)
   const [recentTxs, setRecentTxs] = useState<RecentTx[]>([])
   const [selectedDetail, setSelectedDetail] = useState<{ sig: string; detail: TransactionDetail } | null>(null)
@@ -278,6 +251,18 @@ export function TransactionsPage() {
     await fetchDetail(sigLookup.trim())
   }, [sigLookup, fetchDetail])
 
+  // Auto-fetch when navigated here with ?sig=
+  useEffect(() => {
+    const sig = searchParams.get('sig')
+    if (sig) {
+      setSigLookup(sig)
+      setActiveTab('sig')
+      fetchDetail(sig)
+    }
+  // Only run on mount / when the query param changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   return (
     <div className="p-6 max-w-3xl space-y-6">
       <div>
@@ -287,7 +272,7 @@ export function TransactionsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="account">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="account">By Account</TabsTrigger>
           <TabsTrigger value="sig">By Signature</TabsTrigger>
@@ -324,7 +309,6 @@ export function TransactionsPage() {
                       key={tx.signature}
                       tx={tx}
                       onSelect={fetchDetail}
-                      network={network}
                     />
                   ))}
                 </div>
@@ -347,7 +331,6 @@ export function TransactionsPage() {
                   <TxDetail
                     detail={selectedDetail.detail}
                     sig={selectedDetail.sig}
-                    network={network}
                   />
                 ) : null}
               </CardContent>
@@ -385,7 +368,6 @@ export function TransactionsPage() {
                 <TxDetail
                   detail={selectedDetail.detail}
                   sig={selectedDetail.sig}
-                  network={network}
                 />
               )}
             </CardContent>
