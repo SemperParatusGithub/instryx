@@ -10,10 +10,42 @@ import {
   createNoopSigner,
   address,
   signTransactionMessageWithSigners,
+  partiallySignTransactionMessageWithSigners,
   getBase64EncodedWireTransaction,
   lamports,
+  AccountRole,
 } from '@solana/kit'
 import type { TransactionSendingSigner, Instruction, KeyPairSigner } from '@solana/kit'
+
+/**
+ * When an IDL instruction marks an account as a signer, @solana/kit requires
+ * a signer *object* to be embedded in that account meta — it doesn't infer
+ * coverage from the fee-payer signer alone.
+ *
+ * This helper walks all instruction accounts and, for any that have a signer
+ * role but no signer attached, attaches a provided signer whose address matches.
+ * Covers the common case: wallet is fee payer AND a required signer account.
+ */
+function patchSignerAccounts(
+  instructions: Instruction[],
+  signers: ReadonlyArray<{ readonly address: string }>,
+): Instruction[] {
+  const byAddr = new Map(signers.map((s) => [s.address, s]))
+  return instructions.map((ix) => ({
+    ...ix,
+    accounts: ix.accounts?.map((acc) => {
+      if (
+        (acc.role === AccountRole.READONLY_SIGNER ||
+          acc.role === AccountRole.WRITABLE_SIGNER) &&
+        !('signer' in acc) &&
+        byAddr.has(acc.address)
+      ) {
+        return { ...acc, signer: byAddr.get(acc.address)! }
+      }
+      return acc
+    }),
+  }))
+}
 
 export async function buildAndSendTransaction(
   rpcUrl: string,
@@ -25,6 +57,8 @@ export async function buildAndSendTransaction(
     value: { blockhash, lastValidBlockHeight },
   } = await rpc.getLatestBlockhash().send()
 
+  const patched = patchSignerAccounts(instructions, [signer])
+
   const txMsg = pipe(
     createTransactionMessage({ version: 0 }),
     (m) => setTransactionMessageFeePayerSigner(signer, m),
@@ -33,11 +67,15 @@ export async function buildAndSendTransaction(
         { blockhash, lastValidBlockHeight },
         m,
       ),
-    (m) => appendTransactionMessageInstructions(instructions, m),
+    (m) => appendTransactionMessageInstructions(patched, m),
   )
 
-  const sigBytes = await signAndSendTransactionMessageWithSigners(txMsg)
-  return getBase58Decoder().decode(sigBytes)
+  try {
+    const sigBytes = await signAndSendTransactionMessageWithSigners(txMsg)
+    return getBase58Decoder().decode(sigBytes)
+  } catch (e) {
+    throw extractRpcError(e)
+  }
 }
 
 /**
@@ -59,6 +97,8 @@ export async function buildAndSendWithKeypairSigner(
     value: { blockhash, lastValidBlockHeight },
   } = await rpc.getLatestBlockhash().send()
 
+  const patched = patchSignerAccounts(instructions, [feePayer])
+
   const txMsg = pipe(
     createTransactionMessage({ version: 0 }),
     (m) => setTransactionMessageFeePayerSigner(feePayer, m),
@@ -67,13 +107,33 @@ export async function buildAndSendWithKeypairSigner(
         { blockhash, lastValidBlockHeight },
         m,
       ),
-    (m) => appendTransactionMessageInstructions(instructions, m),
+    (m) => appendTransactionMessageInstructions(patched, m),
   )
 
   const signed = await signTransactionMessageWithSigners(txMsg)
   const wireBytes = getBase64EncodedWireTransaction(signed)
-  const sig = await rpc.sendTransaction(wireBytes, { encoding: 'base64' }).send()
-  return sig as string
+  try {
+    const sig = await rpc.sendTransaction(wireBytes, { encoding: 'base64' }).send()
+    return sig as string
+  } catch (e) {
+    throw extractRpcError(e)
+  }
+}
+
+/** Extract program logs from a @solana/kit RPC error and re-throw with a useful message. */
+function extractRpcError(e: unknown): Error {
+  if (e && typeof e === 'object' && 'context' in e) {
+    const ctx = (e as { context: Record<string, unknown> }).context
+    const logs = ctx['logs']
+    if (Array.isArray(logs) && logs.length > 0) {
+      return new Error(`Transaction simulation failed:\n${(logs as string[]).join('\n')}`)
+    }
+    const cause = ctx['cause']
+    if (cause && typeof cause === 'object' && 'message' in cause) {
+      return new Error(`Transaction simulation failed: ${(cause as { message: string }).message}`)
+    }
+  }
+  return e instanceof Error ? e : new Error(String(e))
 }
 
 /**
@@ -127,8 +187,10 @@ export async function simulateInstructions(
     (m) => appendTransactionMessageInstructions(instructions, m),
   )
 
-  const signed = await signTransactionMessageWithSigners(txMsg)
-  const wireBytes = getBase64EncodedWireTransaction(signed)
+  // partiallySign (not signTransactionMessageWithSigners) so we skip assertIsFullySignedTransaction.
+  // Null signature slots encode as 64 zero bytes — the RPC accepts them with sigVerify: false.
+  const signed = await partiallySignTransactionMessageWithSigners(txMsg)
+  const wireBytes = getBase64EncodedWireTransaction(signed as Parameters<typeof getBase64EncodedWireTransaction>[0])
 
   const result = await rpc
     .simulateTransaction(wireBytes, {

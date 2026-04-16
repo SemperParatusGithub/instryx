@@ -436,7 +436,7 @@ export function InstructionForm({ instruction }: InstructionFormProps) {
                 {Boolean(simResult.err) && (
                   <Alert variant="destructive">
                     <AlertDescription className="text-xs font-mono break-all">
-                      {JSON.stringify(simResult.err, null, 2) as string}
+                      {JSON.stringify(simResult.err, (_, v) => typeof v === 'bigint' ? v.toString() : v, 2) as string}
                     </AlertDescription>
                   </Alert>
                 )}

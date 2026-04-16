@@ -6,6 +6,7 @@ import { AccountsPage } from '@/features/accounts/AccountsPage'
 import { InstructionsPage } from '@/features/instructions/InstructionsPage'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
 import { KeypairsPage } from '@/features/keypairs/KeypairsPage'
+import { ProgramsPage } from '@/features/programs/ProgramsPage'
 
 export const router = createBrowserRouter([
   {
@@ -14,6 +15,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/network" replace /> },
       { path: 'network', element: <NetworkPage /> },
+      { path: 'programs', element: <ProgramsPage /> },
       { path: 'idl', element: <IdlPage /> },
       { path: 'accounts', element: <AccountsPage /> },
       { path: 'instructions', element: <InstructionsPage /> },

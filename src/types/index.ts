@@ -112,6 +112,26 @@ export interface AddressBookEntry {
   label: string
   address: string
   note?: string
+  schema?: import('@/lib/solana/serialize').SchemaField[]
+  idlId?: string
+  programId?: string
+}
+
+export interface ProgramDeployment {
+  programId: string
+  deployedAt: number
+}
+
+export interface StoredProgram {
+  id: string
+  name: string
+  elfBase64: string
+  elfSize: number
+  idl?: AnchorIdl
+  /** Base64-encoded 64-byte program keypair (from target/deploy/<name>-keypair.json). */
+  programKeypairBase64?: string
+  deployments: Record<string, ProgramDeployment>
+  uploadedAt: number
 }
 
 export interface StoredKeypair {

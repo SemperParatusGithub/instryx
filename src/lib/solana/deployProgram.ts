@@ -164,6 +164,8 @@ async function sendAndConfirm(
 
 export interface DeployOptions {
   onProgress?: (msg: string) => void
+  /** Supply the program's own keypair to deploy to its declared address (required for Anchor programs). */
+  programKeypair?: KeyPairSigner
 }
 
 /**
@@ -175,16 +177,17 @@ export async function deployProgram(
   rpcUrl: string,
   payer: KeyPairSigner,
   elfBytes: Uint8Array,
-  { onProgress }: DeployOptions = {},
+  { onProgress, programKeypair: suppliedProgramKeypair }: DeployOptions = {},
 ): Promise<Address> {
   const rpc    = createSolanaRpc(rpcUrl)
   const elfSize = BigInt(elfBytes.length)
   const enc    = getAddressEncoder()
 
-  // Keypairs for the staging buffer and the permanent program account
+  // Keypairs for the staging buffer and the permanent program account.
+  // If a programKeypair is supplied use it directly (required to hit the declare_id address).
   const [bufferKeypair, programKeypair] = await Promise.all([
     generateKeyPairSigner(),
-    generateKeyPairSigner(),
+    suppliedProgramKeypair ? Promise.resolve(suppliedProgramKeypair) : generateKeyPairSigner(),
   ])
 
   // The programdata PDA is derived from the program account's public key
