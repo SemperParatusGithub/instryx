@@ -7,6 +7,7 @@ import { InstructionsPage } from '@/features/instructions/InstructionsPage'
 import { TransactionsPage } from '@/features/transactions/TransactionsPage'
 import { KeypairsPage } from '@/features/keypairs/KeypairsPage'
 import { ProgramsPage } from '@/features/programs/ProgramsPage'
+import { PdaPage } from '@/features/pda/PdaPage'
 
 export const router = createBrowserRouter([
   {
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'instructions', element: <InstructionsPage /> },
       { path: 'transactions', element: <TransactionsPage /> },
       { path: 'keypairs', element: <KeypairsPage /> },
+      { path: 'pda', element: <PdaPage /> },
     ],
   },
 ])

@@ -8,6 +8,7 @@ import {
   KeyRound,
   Layers,
   HardDrive,
+  GitBranch,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: '/instructions', icon: Zap, label: 'Instructions' },
   { to: '/transactions', icon: Search, label: 'Transactions' },
   { to: '/keypairs', icon: KeyRound, label: 'Keypairs' },
+  { to: '/pda', icon: GitBranch, label: 'PDA Deriver' },
 ]
 
 export function Sidebar() {

@@ -247,11 +247,17 @@ export function InvokePanel({ program }: InvokePanelProps) {
             <Label className="text-xs text-muted-foreground">
               Fee Payer{walletAddress ? ' (auto-filled from wallet)' : ''}
             </Label>
-            <Input
-              {...register('__feePayer')}
-              placeholder={walletAddress ?? 'Public key of fee payer…'}
+            <Controller
+              name="__feePayer"
+              control={control}
               defaultValue={walletAddress ?? ''}
-              className="font-mono text-xs"
+              render={({ field }) => (
+                <AccountInput
+                  value={field.value as string}
+                  onChange={field.onChange}
+                  placeholder={walletAddress ?? 'Public key of fee payer…'}
+                />
+              )}
             />
           </div>
 
