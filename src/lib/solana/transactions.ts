@@ -11,7 +11,32 @@ import { address, AccountRole } from '@solana/kit'
  *   - bool             → boolean (Switch already gives boolean, guard anyway)
  *   - everything else  → unchanged
  */
+/** Hex string → Buffer (BorshCoder requires Buffer for Blob/Vec<u8>/byte arrays). */
+function hexToBuffer(hex: string): Buffer {
+  const clean = hex.replace(/\s/g, '').replace(/^0x/, '')
+  const bytes = new Uint8Array(clean.length / 2)
+  for (let i = 0; i < clean.length; i += 2) {
+    bytes[i / 2] = parseInt(clean.slice(i, i + 2), 16)
+  }
+  return Buffer.from(bytes)
+}
+
 async function coerceArg(value: unknown, type: AnchorType): Promise<unknown> {
+  // Vec<u8>           { vec: 'u8' }         — dynamic byte array
+  // Fixed byte array  { array: ['u8', N] }  — Blob of length N
+  // bytes shorthand   'bytes'               — BorshCoder Blob
+  // All three require a Buffer (not number[]) for BorshCoder.
+  if (
+    (typeof type === 'object' && 'vec' in type && type.vec === 'u8') ||
+    (typeof type === 'object' && 'array' in type &&
+      Array.isArray(type.array) && type.array[0] === 'u8') ||
+    type === 'bytes'
+  ) {
+    const hex = String(value ?? '').replace(/\s/g, '').replace(/^0x/, '')
+    if (!hex) return Buffer.alloc(0)
+    return hexToBuffer(hex)
+  }
+
   if (typeof type !== 'string') return value
   switch (type) {
     case 'u64':

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { AccountInput } from './AccountInput'
+import { BytesArgInput, serializeFieldsToHex } from './BytesArgInput'
 import { anchorTypeLabel, anchorTypeInputType } from '@/lib/idl/formSchema'
 import { buildAnchorInstruction } from '@/lib/solana/transactions'
 import { buildAndSendTransaction, simulateInstructions } from '@/lib/solana/sendTransaction'
@@ -32,7 +33,27 @@ import { parseAndValidateIdl } from '@/lib/idl/parseIdl'
 import { useNetworkStore } from '@/stores/networkStore'
 import { useProgramStore } from '@/stores/programStore'
 import { useWalletContext } from '@/features/wallet/useWalletContext'
-import type { StoredProgram, AnchorInstruction, AnchorIdl } from '@/types'
+import type { StoredProgram, AnchorInstruction, AnchorIdl, AnchorType } from '@/types'
+import type { SchemaField } from '@/lib/solana/serialize'
+
+/** Returns true for any byte-array arg that should use BytesArgInput. */
+function isBytesLike(type: AnchorType): boolean {
+  return (
+    (typeof type === 'object' && 'vec'   in type && type.vec === 'u8') ||
+    (typeof type === 'object' && 'array' in type &&
+      Array.isArray(type.array) && type.array[0] === 'u8') ||
+    type === 'bytes'
+  )
+}
+
+/** For fixed-size [u8; N] arrays, return N so the UI can show the required length. */
+function fixedByteLength(type: AnchorType): number | undefined {
+  if (typeof type === 'object' && 'array' in type &&
+      Array.isArray(type.array) && type.array[0] === 'u8') {
+    return type.array[1] as number
+  }
+  return undefined
+}
 
 type SimResult = { err: unknown; logs: readonly string[] | null; unitsConsumed?: bigint | null }
 type TxResult = { signature: string }
@@ -118,7 +139,11 @@ export function InvokePanel({ program }: InvokePanelProps) {
 
       const args: Record<string, unknown> = {}
       for (const arg of selectedIx.args) {
-        args[arg.name] = formData[`arg_${arg.name}`]
+        const raw = formData[`arg_${arg.name}`]
+        // Vec<u8> is stored as SchemaField[] — serialize to hex string for coerceArg
+        args[arg.name] = isBytesLike(arg.type)
+          ? serializeFieldsToHex(raw as SchemaField[])
+          : raw
       }
 
       const accounts: Record<string, string> = {}
@@ -294,7 +319,20 @@ export function InvokePanel({ program }: InvokePanelProps) {
                         <Label className="text-xs">{arg.name}</Label>
                         <span className="text-xs text-muted-foreground font-mono">{typeLabel}</span>
                       </div>
-                      {inputType === 'checkbox' ? (
+                      {isBytesLike(arg.type) ? (
+                        <Controller
+                          name={`arg_${arg.name}`}
+                          control={control}
+                          defaultValue={[]}
+                          render={({ field }) => (
+                            <BytesArgInput
+                              fields={field.value as SchemaField[]}
+                              onChange={field.onChange}
+                              fixedLength={fixedByteLength(arg.type)}
+                            />
+                          )}
+                        />
+                      ) : inputType === 'checkbox' ? (
                         <Controller
                           name={`arg_${arg.name}`}
                           control={control}
