@@ -1,356 +1,180 @@
-# Instryx — Solana Program Developer Toolkit
+# Instryx
 
-A visual, browser-based interface for interacting with Solana programs. Think of it as **Postman for Solana** — load an Anchor IDL, invoke instructions, inspect accounts, and send real transactions, all without writing a single test script.
+**The developer toolbox for Solana. Deploy programs, invoke instructions, inspect accounts, derive PDAs, manage keypairs — all in one place, all in the browser.**
 
----
-
-## Table of Contents
-
-- [What It Does](#what-it-does)
-- [Quick Start](#quick-start)
-- [Connecting to a Network](#connecting-to-a-network)
-- [Connecting Your Wallet](#connecting-your-wallet)
-- [Loading an IDL (Programs)](#loading-an-idl-programs)
-- [Invoking Instructions](#invoking-instructions)
-  - [Simulating](#simulating)
-  - [Sending a Transaction](#sending-a-transaction)
-  - [PDA Derivation](#pda-derivation)
-- [Account Management](#account-management)
-  - [Inspecting an Account](#inspecting-an-account)
-  - [Decoding Account Data](#decoding-account-data)
-  - [Creating an Account](#creating-an-account)
-  - [Transferring SOL](#transferring-sol)
-  - [Address Book](#address-book)
-- [Transaction Inspector](#transaction-inspector)
-- [Keypair Manager](#keypair-manager)
-- [Deploying / Hosting](#deploying--hosting)
-- [Tech Stack](#tech-stack)
+No backend. No CLI required. No context switching. Just open the app and build.
 
 ---
 
-## What It Does
+## Why Instryx
 
-| Feature | Description |
+Solana development is powerful but fragmented. You write your program in one terminal, deploy it in another, test transactions with custom scripts, and hunt for PDAs with a calculator. Instryx replaces all of that with a unified visual interface designed specifically for Solana developers.
+
+Whether you're hacking on localnet at 2am or debugging a devnet deployment before launch, Instryx has every tool you need in one tab.
+
+---
+
+## What's Inside
+
+### Programs
+Upload your compiled `.so` binary, IDL, and keypair — or just point at your Anchor `target/` directory and Instryx auto-imports everything. Deploy to localnet with one click (auto-airdrop included), or follow the guided fee-payer flow for devnet and mainnet.
+
+### Instruction Invoker
+Select an instruction from your IDL, fill in accounts with a typed form (signer/writable badges, address book picker), provide arguments with full type coercion (u64, Vec<u8>, Pubkey, bool...), then **simulate** to inspect logs and compute units, or **send** to land the transaction on-chain.
+
+### PDA Deriver
+Build seeds from typed fields — strings, integers, public keys, raw bytes — and get the derived address and bump in real time as you type. Copy the PDA directly into any account field.
+
+### Account Inspector
+Fetch any on-chain account, see its lamports, owner, and data size, and decode the raw bytes against your IDL using Borsh. Create accounts, transfer SOL, and save addresses to your address book.
+
+### Transaction Inspector
+Look up any transaction by signature, or browse the recent history for any account. See slot, fee, compute units, balance changes, and program logs — with direct Solana Explorer links.
+
+### Keypair Manager
+Generate or import keypairs, encrypted in-browser with AES-256-GCM. Export them as standard Solana CLI `.json` files. Never store a private key in plaintext.
+
+---
+
+## Feature Highlights
+
+| | |
 |---|---|
-| **Network selector** | Switch between Localnet, Devnet, Mainnet, or any custom RPC URL |
-| **Wallet connect** | Connects to any Wallet Standard wallet (Phantom, Backpack, Solflare, etc.) |
-| **IDL loader** | Upload or paste an Anchor IDL JSON — the UI generates forms for every instruction |
-| **Instruction invocation** | Fill in accounts and arguments, simulate or send real transactions |
-| **PDA derivation** | Derive a Program Derived Address from seeds and auto-fill it into account fields |
-| **Account inspector** | Fetch and display any account's lamports, owner, size, and raw data |
-| **Account decoder** | Decode account data using the types defined in a loaded IDL |
-| **Create account** | Allocate a new on-chain account via the System Program |
-| **Transfer SOL** | Send SOL from your wallet to any address |
-| **Transaction inspector** | Browse recent transactions for an address, or look up by signature |
-| **Keypair manager** | Generate or import keypairs, encrypted in-browser with AES-256-GCM |
-
-Everything is **client-side only** — no backend, no database, no Docker. All data is persisted in `localStorage`.
+| **One-click localnet deploy** | Auto-generates a fee-payer keypair, airdrops SOL, and deploys — no CLI touch required |
+| **Anchor-aware** | Reads `declare_id!()` from your IDL, validates your keypair matches, warns you before a bad deploy |
+| **Quick Import** | Select your Anchor `target/` folder and Instryx auto-matches `.so`, `-keypair.json`, and IDL by name |
+| **Byte field builder** | Compose `Vec<u8>` arguments from typed fields: u8, u16, string, pubkey, hex bytes — with live hex preview |
+| **Live PDA derivation** | PDAs recompute on every keystroke, no button required |
+| **Wallet Standard** | Auto-discovers Phantom, Backpack, Solflare, and any other compliant wallet — zero config |
+| **Address book** | Save any address with a label, pick it from any account input across the entire app |
+| **100% client-side** | No server, no database, no Docker. All state lives in `localStorage`. Deploy to any static host |
 
 ---
 
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+
-- A Wallet Standard wallet browser extension (e.g. [Phantom](https://phantom.app), [Backpack](https://backpack.app), or [Solflare](https://solflare.com))
-- For local testing: [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) with `solana-test-validator`
-
-### Run locally
+- A Wallet Standard wallet extension ([Phantom](https://phantom.app), [Backpack](https://backpack.app), [Solflare](https://solflare.com))
+- For local testing: [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) + `solana-test-validator`
 
 ```bash
-# Clone the repo
 git clone https://github.com/SemperParatusGithub/instryx.git
 cd instryx
-
-# Install dependencies
 npm install
-
-# Start the dev server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
-
-### Build for production
+Open [http://localhost:5173](http://localhost:5173).
 
 ```bash
+# Production build — deploy the dist/ folder anywhere
 npm run build
-# Output is in dist/ — deploy anywhere that serves static files
 ```
 
 ---
 
-## Connecting to a Network
+## The Full Workflow
 
-Go to **Network** in the sidebar.
+Here's what a complete Anchor development cycle looks like with Instryx:
 
-1. Pick a network from the dropdown:
-   - **Localnet** — connects to `http://127.0.0.1:8899` (your local `solana-test-validator`)
-   - **Devnet** — `https://api.devnet.solana.com`
-   - **Mainnet** — `https://api.mainnet-beta.solana.com`
-   - **Custom RPC** — enter any HTTP(S) RPC URL
-2. Click **Test Connection** to verify the endpoint is reachable.
-3. A green "Connected" indicator confirms the RPC is live.
+```
+1. anchor build                         # compile your program
 
-### Airdrop (Localnet / Devnet only)
+2. Open Instryx → Programs
+   → "Select Anchor target/ directory"  # auto-loads .so + keypair + IDL
 
-Enter a public key, set an amount in SOL, and click **Request Airdrop**. Not available on mainnet.
+3. Deploy tab → "Deploy to Localnet"    # one click, auto-airdropped
 
-### Balance lookup
+4. Invoke tab → pick instruction        # typed form, address book, simulate first
 
-Enter any public key in the **Account Balance** panel to fetch its SOL balance.
+5. Accounts → inspect the account       # decode with IDL, see your data live
 
----
+6. PDA Deriver → add seeds              # copy the PDA into your next instruction
+```
 
-## Connecting Your Wallet
-
-The wallet button is at the **bottom of the sidebar**.
-
-- If a Wallet Standard wallet extension is installed and has at least one account, it will appear automatically.
-- Click **Connect [Wallet Name]** to connect.
-- Once connected, the button shows your truncated address. Click it to copy your address or disconnect.
-- The selected wallet is remembered across page refreshes.
-
-> **Tip:** Instryx uses the [Wallet Standard](https://github.com/wallet-standard/wallet-standard) protocol. Any compliant wallet (Phantom, Backpack, Solflare, etc.) is auto-discovered — no manual configuration required.
+No scripts. No curl. No `console.log` in a test file.
 
 ---
 
-## Loading an IDL (Programs)
+## Deploying Programs
 
-Go to **Programs** in the sidebar.
+1. Go to **Programs → Upload Program**
+2. Click **"Select Anchor target/ directory"** — Instryx finds the `.so`, keypair, and IDL automatically
+3. Click **Deploy** on the Deploy tab
+   - **Localnet**: fee-payer is auto-generated and airdropped — just click
+   - **Devnet**: generate a fee-payer keypair in-app, airdrop to it, then deploy
+   - **Mainnet**: copy the generated fee-payer address, fund it externally, then deploy
 
-### Upload a file
-
-1. Click **Upload File** and select your Anchor IDL `.json` file.
-2. The IDL is validated, parsed, and immediately displayed.
-
-### Paste JSON
-
-1. Switch to the **Paste JSON** tab.
-2. Paste the full IDL JSON text.
-3. Click **Load IDL**.
-
-### Managing loaded IDLs
-
-- Each loaded IDL appears as a card showing program name, ID, instruction count, and version.
-- Click **Show instructions** to expand the list of available instructions.
-- Use the **Use** button to make an IDL the active one used by the Instructions and Accounts pages.
-- Multiple IDLs can be loaded at once — switch between them using the sidebar or the selector on the Instructions page.
-- IDLs are persisted in `localStorage` and survive page refreshes.
-- Click the **trash icon** to remove an IDL.
+If your keypair doesn't match the `declare_id!()` in your IDL, Instryx warns you before you deploy — and tells you exactly which addresses conflict.
 
 ---
 
 ## Invoking Instructions
 
-Go to **Instructions** in the sidebar. You must have at least one IDL loaded.
+Go to **Programs → Invoke** (requires an uploaded program with an IDL).
 
-Each instruction defined in the IDL gets its own collapsible card. Click the card header to expand it.
-
-### Filling in accounts
-
-For each required account you'll see an input field labelled with the account name. Badges indicate:
-- **signer** — this account must sign the transaction
-- **writable** — this account will be modified
-- **optional** — can be left blank
-
-Accounts marked as `signer` are auto-populated with your connected wallet address if one is connected. Override any field by typing a different address.
-
-### Filling in arguments
-
-Each argument shows its Anchor type (e.g. `u64`, `String`, `Pubkey`, `bool`). Fill in values as plain text:
-- Integers: plain numbers (`42`, `1000000`)
-- Booleans: toggle switch
-- Public keys: base58 address string
-- Vecs / arrays / structs: JSON (e.g. `[1,2,3]` or `{"x":1}`)
-
-### Simulating
-
-Click **Simulate** to run a dry-run via `simulateTransaction`. No wallet required for simulation — it uses a no-op signer. The result shows:
-- Pass / fail status
-- Program logs
-- Compute units consumed
-- Error details (if failed)
-
-### Sending a Transaction
-
-Click **Send** to sign and broadcast the transaction. **A connected wallet is required.**
-
-The wallet popup will ask for your approval. After confirmation:
-- The transaction signature is displayed
-- A direct link to [Solana Explorer](https://explorer.solana.com) is shown
-
-> **Safety:** Always simulate before sending. The app never signs anything without your explicit wallet approval.
-
-### PDA Derivation
-
-If an account field has a PDA defined in the IDL, a **+ derive PDA** link appears. You can also open the deriver manually for any account field:
-
-1. Click **+ derive PDA** next to the account field.
-2. Add seeds using the **+ Add Seed** button. Each seed has a type:
-   - `string` — UTF-8 text (e.g. `"vault"`)
-   - `pubkey` — a base58 public key
-   - `u8` / `u64` — integer, encoded little-endian
-   - `bytes` — comma-separated decimals (`1,2,3`) or hex (`0x010203`)
-3. Click **Derive**.
-4. The derived address and bump seed are shown. Click **Use** to auto-fill the account field.
+- Pick an instruction from the dropdown
+- Fill in accounts — signer accounts default to your wallet; pick any address from the address book
+- Fill in arguments — `Vec<u8>` args get a full field builder (add u8, string, pubkey, hex fields with live hex preview)
+- Click **Simulate** to dry-run without spending SOL
+- Click **Send** to broadcast (wallet approval required)
 
 ---
 
-## Account Management
+## Deriving PDAs
 
-Go to **Accounts** in the sidebar.
+Go to **PDA Deriver** in the sidebar.
 
-### Inspecting an Account
+1. Enter your program ID (or pick from the address book)
+2. Click **Add Seed** and choose the seed type
+3. The PDA and bump are derived in real time
+4. Copy the address with one click
 
-1. In the **View / Inspect** tab, enter any public key.
-2. Press Enter or click the search button.
-3. The account view shows:
-   - Lamport balance (and SOL equivalent)
-   - Data size
-   - Owner program
-   - Executable flag
-   - Raw data (base64)
-4. A direct Solana Explorer link is shown for the address.
-5. Click **Refresh** to re-fetch after a transaction.
-
-### Decoding Account Data
-
-After fetching an account, click **Decode with IDL**. Instryx will try to deserialize the raw account data against every account type defined in the active IDL using `BorshAccountsCoder`. If a match is found, the decoded fields are displayed as formatted JSON.
-
-> The active IDL must contain the account type that matches the fetched account's discriminator.
-
-### Creating an Account
-
-Go to the **Create** tab.
-
-1. **Owner Program** — the program ID that will own the account (default: System Program).
-2. **Space (bytes)** — how many bytes to allocate. Click **Get Rent** to calculate the minimum rent-exempt lamport amount for that size.
-3. **Lamports** — leave blank to use the rent-exempt minimum, or enter a custom amount.
-4. Click **Create Account**. A wallet popup will appear.
-
-A new Ed25519 keypair is generated in-browser for the new account. After confirmation:
-- The new account's address is displayed.
-- A link to the transaction is shown.
-
-### Transferring SOL
-
-Go to the **Transfer SOL** tab.
-
-1. Enter the **Recipient** address.
-2. Enter the **Amount** in SOL.
-3. Click **Send SOL**. A wallet popup will appear.
-
-Uses the System Program's `transfer` instruction via `@solana-program/system`.
-
-### Address Book
-
-The **Address Book** tab lets you save frequently used addresses:
-- Save any inspected account directly from the View / Inspect tab using **Save to Book**.
-- Add addresses manually with a label.
-- Click **Inspect** from the address book to jump straight to an account's details.
-- Entries are persisted in `localStorage`.
+Supported seed types: `u8`, `u16`, `u32`, `u64`, `i8`, `i16`, `i32`, `i64`, `string`, `pubkey`, `bytes`.
 
 ---
 
-## Transaction Inspector
+## Security
 
-Go to **Transactions** in the sidebar.
-
-### By Account
-
-1. Enter an account or program public key.
-2. Click Search to fetch the 25 most recent transactions.
-3. Each transaction row shows status (OK / Fail), a truncated signature, and timestamp.
-4. Click **Details** to fetch the full transaction: slot, time, fee, compute units, balance changes, and program logs.
-
-### By Signature
-
-Switch to the **By Signature** tab, enter a full transaction signature, and click **Fetch**.
-
-Both views include a **Explorer** link that opens Solana Explorer in the correct cluster (devnet, mainnet, or localnet).
-
----
-
-## Keypair Manager
-
-Go to **Keypairs** in the sidebar.
-
-> **Security:** Private keys are encrypted with AES-256-GCM using a PBKDF2-derived key before being stored in `localStorage`. They are never stored or logged in plaintext.
-
-### Generate a new keypair
-
-1. Click **Generate Keypair**.
-2. Enter a label and a password (used to encrypt the private key).
-3. Confirm the password and click **Generate**.
-
-The public key is immediately displayed. Click the eye icon to show/hide the full address.
-
-### Import an existing keypair
-
-1. Click **Import**.
-2. Select a Solana CLI keypair JSON file (the standard `[byte, byte, ...]` format output by `solana-keygen`).
-3. Enter a label and an encryption password.
-4. Click **Import & Encrypt**.
-
-### Export a keypair
-
-Click the **download icon** on any keypair card. You'll be prompted for the password you used when creating/importing it. A Solana CLI-compatible JSON file is downloaded.
-
-### Using keypairs as transaction signers
-
-Keypair accounts are not yet wired as transaction signers in the UI (that's a planned v1.1 feature). For now, use them as address references or export them for use with the Solana CLI.
-
----
-
-## Deploying / Hosting
-
-The app is a pure static SPA — just serve the contents of `dist/`.
-
-```bash
-npm run build
-```
-
-### Vercel
-
-```bash
-npx vercel --prod
-```
-
-### Netlify
-
-Drag and drop the `dist/` folder at [app.netlify.com](https://app.netlify.com).
-
-### GitHub Pages
-
-Use any static site GitHub Action to deploy `dist/` to the `gh-pages` branch.
-
-### Local validator + hosted app
-
-If you're using the hosted version against a local validator:
-1. Set **Network** → **Custom RPC** → `http://localhost:8899`
-2. Make sure your `solana-test-validator` is running with CORS enabled:
-   ```bash
-   solana-test-validator --rpc-port 8899
-   ```
-3. Some browsers block mixed-content (HTTPS page → HTTP RPC). Use the locally-run dev server or a browser extension that allows mixed content for local development.
+- All private keys are encrypted with **AES-256-GCM** using a PBKDF2-derived key before touching `localStorage`
+- No data ever leaves your browser — there is no server, no analytics, no telemetry
+- Transactions are only signed with your explicit wallet approval
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
+| | |
 |---|---|
 | Language | TypeScript (strict) |
 | Framework | React 19 |
-| Build | Vite 8 |
+| Build tool | Vite |
 | Solana SDK | `@solana/kit` (web3.js v2) |
 | Wallet | `@solana/react` + Wallet Standard |
-| System Program | `@solana-program/system` |
-| IDL / encoding | `@coral-xyz/anchor` (client-side only) |
-| UI | shadcn/ui + Tailwind CSS v4 |
-| State | Zustand (all stores persisted) |
+| IDL / encoding | `@coral-xyz/anchor` |
+| UI components | shadcn/ui + Tailwind CSS v4 |
+| State | Zustand (persisted) |
 | Forms | React Hook Form |
 | Routing | React Router v7 |
-| Notifications | Sonner |
+
+---
+
+## Roadmap
+
+- [ ] Token accounts — view SPL token balances, mint info, and ATAs
+- [ ] Program upgrade — upgrade a deployed Anchor program in-place
+- [ ] Anchor CPI explorer — visualize cross-program invocations in a transaction
+- [ ] Shareable links — encode instruction calls as URLs
+- [ ] Keypairs as transaction signers — sign instructions directly with in-app keypairs
+
+---
+
+## Contributing
+
+Issues and PRs are welcome. TypeScript strict mode throughout. UI features live in `src/features/`, shared Solana utilities in `src/lib/solana/`, Zustand stores in `src/stores/`.
+
+---
+
+*Built for Solana developers who want to move fast.*
