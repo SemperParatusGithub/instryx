@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -123,7 +122,7 @@ export function NetworkPage() {
     (Number(lamports) / 1_000_000_000).toFixed(6)
 
   return (
-    <div className="p-6 max-w-2xl space-y-6">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Network & Wallet</h1>
         <p className="text-muted-foreground text-sm mt-1">
@@ -131,179 +130,178 @@ export function NetworkPage() {
         </p>
       </div>
 
-      {/* Network selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">RPC Configuration</CardTitle>
-          <CardDescription>Select a network or provide a custom RPC URL.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Network</Label>
-            <Select value={network} onValueChange={(v) => setNetwork(v as Network)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="localnet">Localnet (http://127.0.0.1:8899)</SelectItem>
-                <SelectItem value="devnet">Devnet</SelectItem>
-                <SelectItem value="mainnet">Mainnet Beta</SelectItem>
-                <SelectItem value="custom">Custom RPC</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {network === 'custom' && (
-            <div className="space-y-1.5">
-              <Label>Custom RPC URL</Label>
-              <Input
-                placeholder="https://my-rpc.example.com"
-                value={customRpcUrl}
-                onChange={(e) => setCustomRpcUrl(e.target.value)}
-              />
-            </div>
-          )}
-
-          {network !== 'custom' && (
-            <div className="space-y-1.5">
-              <Label>RPC URL</Label>
-              <div className="flex items-center gap-2">
-                <Input value={rpcUrl} readOnly className="font-mono text-sm" />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copy(rpcUrl)}
-                >
-                  {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3">
-            <Button onClick={testConnection} disabled={testing || !activeRpcUrl}>
-              {testing ? (
-                <Loader2 className="size-4 animate-spin mr-2" />
-              ) : (
-                <RefreshCw className="size-4 mr-2" />
-              )}
-              Test Connection
-            </Button>
-            <div className="flex items-center gap-1.5 text-sm">
-              {isConnected ? (
-                <>
-                  <Wifi className="size-4 text-green-500" />
-                  <span className="text-green-500">Connected</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="size-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Not connected</span>
-                </>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Account inspector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Account Balance</CardTitle>
-          <CardDescription>Look up the SOL balance of any address.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter a public key…"
-              value={inspectAddress}
-              onChange={(e) => setInspectAddress(e.target.value)}
-              className="font-mono text-sm"
-            />
-            <Button
-              onClick={() => fetchBalance(inspectAddress)}
-              disabled={loadingBalance || !inspectAddress}
-            >
-              {loadingBalance ? <Loader2 className="size-4 animate-spin" /> : 'Fetch'}
-            </Button>
-          </div>
-
-          {balance !== null && walletAddress === null && (
-            <div className="rounded-md bg-muted p-3 flex items-center justify-between">
-              <span className="text-sm font-mono text-muted-foreground truncate mr-4">
-                {truncate(inspectAddress)}
-              </span>
-              <Badge variant="secondary" className="font-mono shrink-0">
-                {lamportsToSol(balance)} SOL
-              </Badge>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Airdrop */}
-      {AIRDROP_NETWORKS.includes(network) && (
-        <>
-          <Separator />
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Droplets className="size-4 text-blue-400" />
-                Airdrop SOL
-              </CardTitle>
-              <CardDescription>
-                Request test SOL on {NETWORK_LABELS[network]}.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>Recipient Address</Label>
-                <Input
-                  placeholder="Public key…"
-                  value={airdropAddress}
-                  onChange={(e) => setAirdropAddress(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Amount (SOL)</Label>
-                <Input
-                  type="number"
-                  min="0.001"
-                  max="10"
-                  step="0.5"
-                  value={airdropAmount}
-                  onChange={(e) => setAirdropAmount(e.target.value)}
-                />
-              </div>
-              <Button
-                onClick={handleAirdrop}
-                disabled={airdropping || !airdropAddress}
-              >
-                {airdropping && <Loader2 className="size-4 animate-spin mr-2" />}
-                Request Airdrop
-              </Button>
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {/* Wallet info (placeholder — wallet adapter) */}
-      {walletAddress && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left column — RPC config */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Connected Wallet</CardTitle>
+            <CardTitle className="text-base">RPC Configuration</CardTitle>
+            <CardDescription>Select a network or provide a custom RPC URL.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-sm">{walletAddress}</span>
-              <Button variant="ghost" size="icon" onClick={() => copy(walletAddress)}>
-                <Copy className="size-4" />
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Network</Label>
+              <Select value={network} onValueChange={(v) => setNetwork(v as Network)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="localnet">Localnet (http://127.0.0.1:8899)</SelectItem>
+                  <SelectItem value="devnet">Devnet</SelectItem>
+                  <SelectItem value="mainnet">Mainnet Beta</SelectItem>
+                  <SelectItem value="custom">Custom RPC</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {network === 'custom' && (
+              <div className="space-y-1.5">
+                <Label>Custom RPC URL</Label>
+                <Input
+                  placeholder="https://my-rpc.example.com"
+                  value={customRpcUrl}
+                  onChange={(e) => setCustomRpcUrl(e.target.value)}
+                />
+              </div>
+            )}
+
+            {network !== 'custom' && (
+              <div className="space-y-1.5">
+                <Label>RPC URL</Label>
+                <div className="flex items-center gap-2">
+                  <Input value={rpcUrl} readOnly className="font-mono text-sm" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copy(rpcUrl)}
+                  >
+                    {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <Button onClick={testConnection} disabled={testing || !activeRpcUrl}>
+                {testing ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="size-4 mr-2" />
+                )}
+                Test Connection
               </Button>
+              <div className="flex items-center gap-1.5 text-sm">
+                {isConnected ? (
+                  <>
+                    <Wifi className="size-4 text-green-500" />
+                    <span className="text-green-500">Connected</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="size-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Not connected</span>
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
+
+        {/* Right column — balance + airdrop */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Account Balance</CardTitle>
+              <CardDescription>Look up the SOL balance of any address.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter a public key…"
+                  value={inspectAddress}
+                  onChange={(e) => setInspectAddress(e.target.value)}
+                  className="font-mono text-sm"
+                />
+                <Button
+                  onClick={() => fetchBalance(inspectAddress)}
+                  disabled={loadingBalance || !inspectAddress}
+                >
+                  {loadingBalance ? <Loader2 className="size-4 animate-spin" /> : 'Fetch'}
+                </Button>
+              </div>
+
+              {balance !== null && walletAddress === null && (
+                <div className="rounded-md bg-muted p-3 flex items-center justify-between">
+                  <span className="text-sm font-mono text-muted-foreground truncate mr-4">
+                    {truncate(inspectAddress)}
+                  </span>
+                  <Badge variant="secondary" className="font-mono shrink-0">
+                    {lamportsToSol(balance)} SOL
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {AIRDROP_NETWORKS.includes(network) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Droplets className="size-4 text-blue-400" />
+                  Airdrop SOL
+                </CardTitle>
+                <CardDescription>
+                  Request test SOL on {NETWORK_LABELS[network]}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Recipient Address</Label>
+                  <Input
+                    placeholder="Public key…"
+                    value={airdropAddress}
+                    onChange={(e) => setAirdropAddress(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Amount (SOL)</Label>
+                  <Input
+                    type="number"
+                    min="0.001"
+                    max="10"
+                    step="0.5"
+                    value={airdropAmount}
+                    onChange={(e) => setAirdropAmount(e.target.value)}
+                  />
+                </div>
+                <Button
+                  onClick={handleAirdrop}
+                  disabled={airdropping || !airdropAddress}
+                >
+                  {airdropping && <Loader2 className="size-4 animate-spin mr-2" />}
+                  Request Airdrop
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {walletAddress && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Connected Wallet</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm">{walletAddress}</span>
+                  <Button variant="ghost" size="icon" onClick={() => copy(walletAddress)}>
+                    <Copy className="size-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -16,6 +16,7 @@ import {
   Loader2,
   ExternalLink,
   ChevronDown,
+  Pencil,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -52,12 +53,64 @@ import {
 import { useNetworkStore } from '@/stores/networkStore'
 import { useAddressBookStore } from '@/stores/addressBookStore'
 import { useIdlStore } from '@/stores/idlStore'
+import { fieldsToStoredIdl } from '@/lib/idl/parseIdl'
+import type { AddressBookEntry } from '@/types'
 import { useWalletContext } from '@/features/wallet/useWalletContext'
 import { fetchAccount, lamportsToSol, formatBytes } from '@/lib/solana/accounts'
 import { buildAndSendTransaction, buildAndSendWithKeypairSigner, airdropAndConfirm } from '@/lib/solana/sendTransaction'
 import { useDataWriterProgram } from '@/lib/solana/useDataWriterProgram'
+import bs58 from 'bs58'
+import type { AnchorType } from '@/types'
 
 // ---- helpers ----
+
+/**
+ * Decodes raw account bytes using a synthetic IDL's struct type definition.
+ * Used for accounts created by instryx-data-writer which have no Anchor discriminant.
+ */
+function decodeRawWithSyntheticIdl(
+  bytes: Uint8Array,
+  fields: Array<{ name: string; type: AnchorType }>,
+): Record<string, unknown> {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const result: Record<string, unknown> = {}
+  let offset = 0
+
+  for (const field of fields) {
+    const t = field.type
+    try {
+      if (t === 'u8')         { result[field.name] = view.getUint8(offset);              offset += 1 }
+      else if (t === 'u16')   { result[field.name] = view.getUint16(offset, true);        offset += 2 }
+      else if (t === 'u32')   { result[field.name] = view.getUint32(offset, true);        offset += 4 }
+      else if (t === 'u64')   { result[field.name] = view.getBigUint64(offset, true);     offset += 8 }
+      else if (t === 'i8')    { result[field.name] = view.getInt8(offset);               offset += 1 }
+      else if (t === 'i16')   { result[field.name] = view.getInt16(offset, true);         offset += 2 }
+      else if (t === 'i32')   { result[field.name] = view.getInt32(offset, true);         offset += 4 }
+      else if (t === 'i64')   { result[field.name] = view.getBigInt64(offset, true);      offset += 8 }
+      else if (t === 'bool')  { result[field.name] = bytes[offset] !== 0;                offset += 1 }
+      else if (t === 'publicKey') {
+        result[field.name] = bs58.encode(bytes.slice(offset, offset + 32))
+        offset += 32
+      }
+      else if (t === 'string') {
+        const len = view.getUint32(offset, true)
+        offset += 4
+        result[field.name] = new TextDecoder().decode(bytes.slice(offset, offset + len))
+        offset += len
+      }
+      else if (typeof t === 'object' && 'array' in t) {
+        const n = t.array[1] as number
+        result[field.name] = Array.from(bytes.slice(offset, offset + n))
+          .map((b) => b.toString(16).padStart(2, '0')).join('')
+        offset += n
+      }
+    } catch {
+      result[field.name] = `<decode error at byte ${offset}>`
+    }
+  }
+
+  return result
+}
 
 type AccountInfo = {
   lamports: bigint
@@ -150,23 +203,33 @@ function DecodePanel({ account }: { account: AccountInfo; addr: string }) {
     setDecoding(true)
     setError(null)
     try {
-      const { BorshAccountsCoder } = await import('@coral-xyz/anchor')
-      const coder = new BorshAccountsCoder(stored.idl as never)
       const rawBytes = Uint8Array.from(atob(account.data[0]), (c) => c.charCodeAt(0))
-      // Try each account type in the IDL
-      let result: Record<string, unknown> | null = null
-      for (const accDef of stored.idl.accounts ?? []) {
-        try {
-          result = coder.decode(accDef.name, Buffer.from(rawBytes))
-          break
-        } catch {
-          // try next
-        }
-      }
-      if (result) {
+      const isSynthetic = stored.idl.instructions.length === 0 && (stored.idl.types?.length ?? 0) > 0
+
+      if (isSynthetic) {
+        // Our data-writer accounts have no Anchor discriminant — decode raw bytes field-by-field
+        const typeDef = stored.idl.types![0]
+        const fields = typeDef.type.fields ?? []
+        const result = decodeRawWithSyntheticIdl(rawBytes, fields)
         setDecoded(result)
       } else {
-        setError('Could not match account data to any IDL account type.')
+        // Standard Anchor IDL — use BorshAccountsCoder (expects 8-byte discriminant)
+        const { BorshAccountsCoder } = await import('@coral-xyz/anchor')
+        const coder = new BorshAccountsCoder(stored.idl as never)
+        let result: Record<string, unknown> | null = null
+        for (const accDef of stored.idl.accounts ?? []) {
+          try {
+            result = coder.decode(accDef.name, Buffer.from(rawBytes))
+            break
+          } catch {
+            // try next
+          }
+        }
+        if (result) {
+          setDecoded(result)
+        } else {
+          setError('Could not match account data to any IDL account type.')
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -259,12 +322,159 @@ function FieldRow({
   )
 }
 
+// ---- Edit Data Account Dialog ----
+
+function EditDataAccountDialog({
+  entry,
+  currentProgramId,
+}: {
+  entry: AddressBookEntry
+  currentProgramId: string | null
+}) {
+  const { rpcUrl, network, customRpcUrl } = useNetworkStore()
+  const { signer } = useWalletContext()
+  const { updateEntry } = useAddressBookStore()
+  const activeRpcUrl = network === 'custom' ? customRpcUrl : rpcUrl
+  const isLocalnet = network === 'localnet'
+
+  // Detect stale program: account was created with a different (older) program
+  const programMismatch =
+    isLocalnet &&
+    currentProgramId !== null &&
+    !!entry.programId &&
+    entry.programId !== currentProgramId
+
+  const [open, setOpen] = useState(false)
+  const [fields, setFields] = useState<SchemaField[]>([])
+  const [submitting, setSubmitting] = useState(false)
+
+  // Re-init fields from entry schema when dialog opens
+  useEffect(() => {
+    if (open && entry.schema) {
+      setFields(entry.schema.map((f) => ({ ...f, id: `edit-${f.id}-${Date.now()}` })))
+    }
+  }, [open, entry.schema])
+
+  const updateField = useCallback((id: string, patch: Partial<SchemaField>) => {
+    setFields((prev) => prev.map((f) => f.id === id ? { ...f, ...patch } : f))
+  }, [])
+
+  const hasErrors = fields.some((f) => validateField(f) !== null)
+  const serialized = serializeSchema(fields)
+
+  const submit = useCallback(async () => {
+    if (!entry.programId) { toast.error('Program ID not stored — cannot update'); return }
+    if (!serialized) { toast.error('Fix field errors before updating'); return }
+    if (!isLocalnet && !signer) { toast.error('Connect a wallet first'); return }
+
+    setSubmitting(true)
+    try {
+      // Prepend discriminant 0x01 = update
+      const data = new Uint8Array(1 + serialized.length)
+      data[0] = 1
+      data.set(serialized, 1)
+
+      let sig: string
+      if (isLocalnet) {
+        const tempFeePayer = await generateKeyPairSigner()
+        toast.info('Requesting airdrop for fee payer…')
+        await airdropAndConfirm(activeRpcUrl, tempFeePayer.address, 0.05)
+        sig = await buildAndSendWithKeypairSigner(activeRpcUrl, tempFeePayer, [{
+          programAddress: address(entry.programId),
+          accounts: [
+            { address: tempFeePayer.address,    role: AccountRole.WRITABLE_SIGNER, signer: tempFeePayer },
+            { address: address(entry.address),  role: AccountRole.WRITABLE },
+            { address: address(SYSTEM_PROGRAM), role: AccountRole.READONLY },
+          ],
+          data,
+        } as never])
+      } else {
+        sig = await buildAndSendTransaction(activeRpcUrl, signer!, [{
+          programAddress: address(entry.programId),
+          accounts: [
+            { address: signer!.address,         role: AccountRole.WRITABLE_SIGNER },
+            { address: address(entry.address),  role: AccountRole.WRITABLE },
+            { address: address(SYSTEM_PROGRAM), role: AccountRole.READONLY },
+          ],
+          data,
+        } as never])
+      }
+
+      // Persist updated field values back to address book
+      updateEntry(entry.id, { schema: fields })
+      toast.success('Account updated!')
+      toast.info(`Tx: ${sig.slice(0, 16)}…`)
+      setOpen(false)
+    } catch (e) {
+      toast.error('Update failed: ' + (e instanceof Error ? e.message : String(e)))
+    } finally {
+      setSubmitting(false)
+    }
+  }, [activeRpcUrl, entry, fields, isLocalnet, serialized, signer, updateEntry])
+
+  if (!entry.schema || entry.schema.length === 0) return null
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+          <Pencil className="size-3" />Modify
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Modify Account Data</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-1">
+          <div className="text-xs text-muted-foreground font-mono truncate">{entry.address}</div>
+
+          {programMismatch ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
+              <p className="font-medium">Account created with an outdated program</p>
+              <p className="text-destructive/80">
+                The data-writer program was redeployed since this account was created. Because the account is owned by the old program, it can no longer be modified here.
+              </p>
+              <p className="text-destructive/80">
+                Delete this entry from the address book and recreate the account to enable modification.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {fields.map((field) => (
+                  <FieldRow key={field.id} field={field} onUpdate={(patch) => updateField(field.id, patch)} onRemove={() => {}} />
+                ))}
+              </div>
+              {serialized && (
+                <div className="rounded-md bg-muted p-2">
+                  <p className="text-xs text-muted-foreground mb-1">Hex preview ({serialized.length} bytes)</p>
+                  <pre className="text-xs font-mono break-all whitespace-pre-wrap text-foreground/80">{toHexDisplay(serialized)}</pre>
+                </div>
+              )}
+              {!isLocalnet && !signer && (
+                <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
+                  A connected wallet is required to update on-chain data.
+                </div>
+              )}
+              <Button onClick={submit} disabled={submitting || hasErrors || (!isLocalnet && !signer)} className="w-full">
+                {submitting && <Loader2 className="size-4 animate-spin mr-2" />}
+                Write Updated Data
+              </Button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function CreateAccountPanel() {
   const uid = useId()
   const { rpcUrl, network, customRpcUrl } = useNetworkStore()
   const { signer } = useWalletContext()
   const activeRpcUrl = network === 'custom' ? customRpcUrl : rpcUrl
   const { addEntry } = useAddressBookStore()
+  const { addIdl } = useIdlStore()
   const isLocalnet = network === 'localnet'
 
   // Shared
@@ -355,11 +565,15 @@ function CreateAccountPanel() {
       } else {
         // Data account via data-writer program
         if (!resolvedProgramId) { toast.error('Program not ready yet'); return }
-        const data = serialized
-        if (!data) { toast.error('Fix field errors before creating'); return }
+        const payload = serialized
+        if (!payload) { toast.error('Fix field errors before creating'); return }
+        // Prepend discriminant 0x00 = create
+        const data = new Uint8Array(1 + payload.length)
+        data[0] = 0
+        data.set(payload, 1)
         if (isLocalnet) {
           const tempFeePayer = await generateKeyPairSigner()
-          const rent = await createSolanaRpc(activeRpcUrl).getMinimumBalanceForRentExemption(BigInt(data.length)).send()
+          const rent = await createSolanaRpc(activeRpcUrl).getMinimumBalanceForRentExemption(BigInt(payload.length)).send()
           toast.info('Requesting airdrop for fee payer…')
           await airdropAndConfirm(activeRpcUrl, tempFeePayer.address, Number(rent) / 1e9 + 0.01)
           sig = await buildAndSendWithKeypairSigner(activeRpcUrl, tempFeePayer, [{
@@ -385,7 +599,17 @@ function CreateAccountPanel() {
       }
 
       setResult({ address: newAddr, sig })
-      if (saveToBook) addEntry({ label: accountName.trim() || newAddr, address: newAddr })
+
+      if (hasData && resolvedProgramId) {
+        // Always auto-save schema + IDL for data accounts so they can be modified later
+        const schemaName = accountName.trim() || newAddr.slice(0, 8)
+        const stored = fieldsToStoredIdl(fields, resolvedProgramId, schemaName)
+        addIdl(stored)
+        addEntry({ label: schemaName, address: newAddr, schema: fields, idlId: stored.id, programId: resolvedProgramId })
+      } else if (saveToBook) {
+        addEntry({ label: accountName.trim() || newAddr, address: newAddr })
+      }
+
       toast.success('Account created!')
       generateKeypair()
     } catch (e) {
@@ -393,7 +617,7 @@ function CreateAccountPanel() {
     } finally {
       setCreating(false)
     }
-  }, [accountName, activeRpcUrl, addEntry, customLamports, generateKeypair, hasData, isLocalnet, newAcctSigner, ownerProgram, rentExempt, resolvedProgramId, saveToBook, serialized, signer, spaceBytes])
+  }, [accountName, activeRpcUrl, addEntry, addIdl, customLamports, fields, generateKeypair, hasData, isLocalnet, newAcctSigner, ownerProgram, rentExempt, resolvedProgramId, saveToBook, serialized, signer, spaceBytes])
 
   return (
     <Card>
@@ -544,11 +768,18 @@ function CreateAccountPanel() {
           </>
         )}
 
-        {/* Save to address book */}
-        <div className="flex items-center gap-2">
-          <Switch id="save-to-book" checked={saveToBook} onCheckedChange={setSaveToBook} />
-          <Label htmlFor="save-to-book" className="cursor-pointer font-normal text-sm">Save to address book</Label>
-        </div>
+        {/* Save to address book — always on for data accounts */}
+        {hasData ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <CheckCircle2 className="size-4 text-green-500 shrink-0" />
+            Auto-saved to address book with schema (required for modification)
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Switch id="save-to-book" checked={saveToBook} onCheckedChange={setSaveToBook} />
+            <Label htmlFor="save-to-book" className="cursor-pointer font-normal text-sm">Save to address book</Label>
+          </div>
+        )}
 
         {/* Submit */}
         <div className="space-y-2">
@@ -712,6 +943,9 @@ export function AccountsPage() {
   const { rpcUrl, network, customRpcUrl } = useNetworkStore()
   const { entries, removeEntry } = useAddressBookStore()
   const activeRpcUrl = network === 'custom' ? customRpcUrl : rpcUrl
+  const isLocalnet = network === 'localnet'
+  const dataWriterProgram = useDataWriterProgram(activeRpcUrl, isLocalnet)
+  const currentProgramId = dataWriterProgram.programId
 
   const [activeTab, setActiveTab] = useState('view')
   const [lookupAddr, setLookupAddr] = useState('')
@@ -743,7 +977,7 @@ export function AccountsPage() {
   }, [lookupAddr, activeRpcUrl])
 
   return (
-    <div className="p-6 max-w-3xl space-y-6">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Accounts</h1>
         <p className="text-muted-foreground text-sm mt-1">Inspect, create, and manage Solana accounts.</p>
@@ -825,10 +1059,18 @@ export function AccountsPage() {
                   {entries.map((entry) => (
                     <div key={entry.id} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{entry.label}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium">{entry.label}</p>
+                          {entry.schema && entry.schema.length > 0 && (
+                            <Badge variant="secondary" className="text-xs h-4 px-1">schema</Badge>
+                          )}
+                        </div>
                         <p className="text-xs font-mono text-muted-foreground truncate">{entry.address}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        {entry.schema && entry.schema.length > 0 && (
+                          <EditDataAccountDialog entry={entry} currentProgramId={currentProgramId} />
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => handleLookup(entry.address)}>
                           <Search className="size-3.5 mr-1" />Inspect
                         </Button>

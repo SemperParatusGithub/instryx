@@ -451,7 +451,7 @@ export function IdlPage() {
   }, [pastedJson, handleLoad])
 
   return (
-    <div className="p-6 max-w-3xl space-y-6">
+    <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Programs / IDL</h1>
         <p className="text-muted-foreground text-sm mt-1">

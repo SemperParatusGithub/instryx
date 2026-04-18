@@ -172,88 +172,99 @@ export function PdaPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-5 py-4 border-b border-border">
-        <h1 className="font-semibold text-base">PDA Deriver</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Derive a Program Derived Address from a program ID and seeds
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">PDA Deriver</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Derive a Program Derived Address from a program ID and seeds.
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 max-w-lg space-y-5">
-        {/* Program ID */}
-        <div className="space-y-1.5">
-          <Label>Program ID</Label>
-          <AccountInput
-            value={programId}
-            onChange={setProgramId}
-            placeholder="Program public key…"
-          />
-        </div>
-
-        {/* Seeds */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label>Seeds</Label>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
-                  <Plus className="size-3" />
-                  Add Seed
-                  <ChevronDown className="size-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                {SEED_TYPES.map(({ group, types }) => (
-                  <div key={group}>
-                    <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                      {group}
-                    </DropdownMenuLabel>
-                    {types.map((t) => (
-                      <DropdownMenuItem
-                        key={t}
-                        onClick={() => addSeed(t)}
-                        className="font-mono text-xs"
-                      >
-                        {t}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                  </div>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* Left — inputs */}
+        <div className="space-y-5">
+          {/* Program ID */}
+          <div className="space-y-1.5">
+            <Label>Program ID</Label>
+            <AccountInput
+              value={programId}
+              onChange={setProgramId}
+              placeholder="Program public key…"
+            />
           </div>
 
-          {seeds.length === 0 ? (
-            <div className="rounded-md border border-dashed py-5 text-center text-xs text-muted-foreground">
-              No seeds — the PDA will be derived from the program ID only
+          {/* Seeds */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Seeds</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                    <Plus className="size-3" />
+                    Add Seed
+                    <ChevronDown className="size-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {SEED_TYPES.map(({ group, types }) => (
+                    <div key={group}>
+                      <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                        {group}
+                      </DropdownMenuLabel>
+                      {types.map((t) => (
+                        <DropdownMenuItem
+                          key={t}
+                          onClick={() => addSeed(t)}
+                          className="font-mono text-xs"
+                        >
+                          {t}
+                        </DropdownMenuItem>
+                      ))}
+                      <DropdownMenuSeparator />
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {seeds.map((seed, i) => (
-                <SeedRow
-                  key={seed.id}
-                  seed={seed}
-                  index={i}
-                  onUpdate={(patch) => updateSeed(seed.id, patch)}
-                  onRemove={() => removeSeed(seed.id)}
-                />
-              ))}
-            </div>
-          )}
+
+            {seeds.length === 0 ? (
+              <div className="rounded-md border border-dashed py-8 text-center text-xs text-muted-foreground">
+                No seeds — the PDA will be derived from the program ID only
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {seeds.map((seed, i) => (
+                  <SeedRow
+                    key={seed.id}
+                    seed={seed}
+                    index={i}
+                    onUpdate={(patch) => updateSeed(seed.id, patch)}
+                    onRemove={() => removeSeed(seed.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Result */}
-        {(pda || error) && (
-          <div className="space-y-1.5">
-            <Label>Derived PDA</Label>
-            {error ? (
-              <p className="text-xs text-destructive">{error}</p>
-            ) : pda ? (
-              <div className="space-y-1.5">
+        {/* Right — result */}
+        <div className="rounded-lg border bg-card p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <GitBranch className="size-4 text-primary" />
+            <h2 className="text-sm font-medium">Derived Address</h2>
+          </div>
+
+          {!programId.trim() ? (
+            <p className="text-xs text-muted-foreground">
+              Enter a Program ID to derive the PDA.
+            </p>
+          ) : error ? (
+            <p className="text-xs text-destructive">{error}</p>
+          ) : pda ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">PDA</p>
                 <div className="flex items-center gap-2 rounded-md border bg-muted px-3 py-2.5">
-                  <GitBranch className="size-3.5 text-primary shrink-0" />
                   <span className="font-mono text-xs flex-1 break-all">{pda}</span>
                   <Button
                     variant="ghost"
@@ -266,13 +277,24 @@ export function PdaPage() {
                       : <Copy className="size-3.5" />}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Bump: <span className="font-mono">{bump}</span>
-                </p>
               </div>
-            ) : null}
-          </div>
-        )}
+              <div className="flex items-center gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Bump</p>
+                  <span className="font-mono text-sm">{bump}</span>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Seeds</p>
+                  <span className="font-mono text-sm">{seeds.length}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Deriving…
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -413,47 +413,48 @@ export function KeypairsPage() {
   const { keypairs } = useKeypairStore()
 
   return (
-    <div className="p-6 max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Keypairs</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Generate and manage local keypairs for signing transactions.
-        </p>
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Keypairs</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Generate and manage local keypairs for signing transactions.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <GenerateDialog />
+          <ImportDialog />
+        </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <GenerateDialog />
-        <ImportDialog />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Stored Keypairs
-            {keypairs.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{keypairs.length}</Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Private keys are AES-256-GCM encrypted with your password before storage.
-            They never leave your browser in plaintext.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {keypairs.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm space-y-1">
-              <KeyRound className="size-8 opacity-30 mx-auto" />
-              <p>No keypairs yet. Generate or import one.</p>
+      {keypairs.length === 0 ? (
+        <Card>
+          <CardContent>
+            <div className="py-16 text-center text-muted-foreground text-sm space-y-2">
+              <KeyRound className="size-10 opacity-30 mx-auto" />
+              <p>No keypairs yet. Generate or import one above.</p>
+              <p className="text-xs">Private keys are AES-256-GCM encrypted with your password and never leave your browser.</p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {keypairs.map((kp) => (
-                <KeypairCard key={kp.id} kp={kp} />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Stored Keypairs
+            </h2>
+            <Badge variant="secondary">{keypairs.length}</Badge>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-4">
+            Private keys are AES-256-GCM encrypted with your password. They never leave your browser in plaintext.
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {keypairs.map((kp) => (
+              <KeypairCard key={kp.id} kp={kp} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
